@@ -116,13 +116,12 @@ module datapath(
 	 output reg [2:0] colour,
 	 output reg [7:0] data_result
     ); 
-	reg [4:0] bool;
 	 
-   // input registers
-   reg [7:0] x_pos;
-	reg [6:0] y_pos;
+	 
+	reg [4:0] ;
+	 
 	
-	reg [27:0] counter;
+	reg [27:0] frame_counter;
 	reg [27:0] counter2;
 	
     // output of the alu
@@ -133,323 +132,32 @@ module datapath(
 	reg[4:0] draw;
 	
 	// different falling blocks x and y registers
-	reg [7:0] x_2;
-	reg [6:0] y_2;
-	reg [7:0] x_3;
-	reg [6:0] y_3;
-	reg [7:0] x_4;
-	reg [6:0] y_4;
 
+	reg [7:0] blockX1;
+	reg [6:0] blockY1;
+	
+	initial begin 
+		blockX1 <= 30;
+		blockY1 <= 0;
+	end
 	
 	always@(posedge clk) begin
-	    if(!resetn) begin
-			  bool <= 4'd0;
-       end
-		 else if (counter == 28'd50000) begin 
-			  // set the initial position of the user's block
-			  if(x_pos == 0) begin
-						x_pos <= 30;
-				end
-				// if FSM = 0, sets the positions of the user's block
-			  if (bool == 4'd0) begin 
-					if(count == 4'd2) begin
-						// movement left of the user's block		
-						if (~left) begin
-							if(x_pos == 30) begin
-								x_pos <= 120;
-							
-							end
-						
-						else begin
-								x_pos <= x_pos - 30;
-						end
-						// movement right of the user's block
-						end if(~right) begin
-								
-								if(x_pos == 120) begin
-									x_pos <= 30;
-								end
-								else begin
-									x_pos <= x_pos + 30;
-								end
-						end
-						
-						count <= 4'd0;
-					end
-
-					y_pos <= 100;
-					bool <= 1;
-			  end
-			  // if FSM = 1, draw the player's block and sets FSM to 3
-			  else if(bool == 4'b1) begin
-					y <= y_pos;
-					x <= x_pos;
-					colour <= 3'b111;
-					bool <= 3;
-					clear <=1;
-			  end
-				// if FSM = 4, wait state
-			  else if (bool == 4'd4) begin
-				
-					bool <= 5;
-			  end
-			  // if FSM = 10, wait state
-			  else if(bool == 4'd10) begin
-			  
-			  
-					bool <= 2;
-			  end
-			  
-			 
-			  // if FSM = 9, updates the position for the falling blocks and checks the collisions
-			  else if(bool == 4'd9) begin
-					// collision for 1st block
-					if(x_pos == x_2 && y_pos == y_2) begin
-						// update the score
-						data_result <= data_result + 1;
-						// update the position
-						if((x_pos + 30) > 120) begin
-							
-							x_2 <= 30;
-							
-						end
-						else begin
-							x_2 <= (x_pos + 30);
-						end
-						
-						y_2 <= 0;
-						
-					end
-					// collision for 2nd block
-					else if(x_pos == x_3 && y_pos == y_3) begin
-						// update the score
-						data_result <= data_result + 5;
-						// update the position
-						if((x_pos - 30) < 0) begin
-							
-							x_3 <= 120;
-							
-						end
-						else begin
-							x_3 <= (x_pos - 30);
-						end
-						
-						y_3 <= 0;
-
-					end
-					// collision for 3rd block
-					else if(x_pos == x_4 && y_pos == y_4) begin 
-						
-						// decrease the score
-						if(data_result >= 10) begin
-						
-							data_result <= data_result - 10;
-						
-						end
-						else begin
-						
-						
-							data_result <= 0;
-
-						end
-						
-						// update the position
-						if((x_2 + 30) > 120) begin
-							
-							x_4 <= 60;
-							
-						end
-						else begin
-							x_4 <= (x_2 + 30);
-						end
-						
-						y_4 <= 0;
-					
-					end
-					// if falling block reaches the bottom
-					if(y_2 == 120) begin
-					
-						// update the position
-						if((x_pos + 30) > 120 || (x_pos + 30) < 30) begin
-							
-							x_2 <= 60;
-							
-						end
-						else begin
-							x_2 <= (x_pos + 30);
-						end
-
-						y_2 <= 0;
-
-					end
-					// if falling block reaches the bottom
-					else if(y_3 == 120) begin
-
-						// update the position
-						if((x_2 - 30) > 120 ||(x_2 - 30) < 0) begin
-							x_3 <= 90;
-						end
-						else begin
-							x_3 <= (x_2 - 30);
-						end
-						
-						y_3 <= 0;
-
-					end
-					// if falling block reaches the bottom
-					else if(y_4 == 120) begin
-						// update the position
-						if((x_3 + 30) > 120 ||(x_3 + 30) < 0) begin
-							
-							x_4 <= 90;
-							
-						end
-						else begin
-							
-							x_4 <= (x_3 - 30);
-						end
-						
-						y_4 <= 0;
-					
-					end 
+		frame_counter <= frame_counter + 1;
 		
-					bool <= 0;
-					
-			  end
-			  // if FSM = 5, wait state
-			  else if(bool == 4'd5) begin
-				
-
-					bool <= 6;
-			  end 
-				// if FSM = 3, animate the position of the falling blocks
-			  else if(bool == 4'd3) begin
-
-					if(x_2 <= 0) begin
-						x_2 <= 30;
-					 end
-
-					 if(x_3 <= 0) begin
-						x_3 <= 90;
-						y_3 <= 90;
-					 end
+		
 	
-					 if(x_4 <= 0) begin
-						x_4 <= 120;
-						y_4 <= 100;
-					 end
-					 
-					 y_2 <= y_2 + 1;
-					 y_3 <= y_3 + 1;
-					 y_4 <= y_4 + 1;
-					 
-					 draw <= 1;
-					 bool <= 4;
-			  end
-			  // if FSM = 2, erase the previous position of the player block
-			  else if (bool == 4'd2)begin
+		//!#!#!#!#!#!#!##########################################################!#!#!#!#!#!!!!!!!!!!!!!!!!!!!
+		// Out put pos 20 20 colour 010
 
-					x <= x_pos;
-					y <= y_pos;
-					colour <= 3'b000;
-					
-					bool <= 9;
-			  end
-			  // if FSM = 6, wait state
-			  else if (bool == 4'd6) begin
-					
-					 
-					 
-					 bool <= 7;
-			  
-			  end
-			  // if FSM = 7, wait state
-			  else if (bool == 4'd7) begin
-					bool <= 8;
-			  end
-			  // if FSM = 8, wait state
-			  else if (bool == 4'd8) begin
-				
-					bool <= 2;
-			  end
-			  
-			  
-			 
-			  
-			  // set the counter back to 0
-			  counter <= 28'd0;
-			  
-			  
-				// slow down the input, so the player block doesn't move too fast
-			  count <= count + 1;
+		x <= blockX1;
+		y <= blockY1;			
+		colour <= 3'b010;
+		if (frame_counter == 0 && ) begin
+			blockY1 <= blockY1 + 1;		
+		end
+		
+	end
 
-	    end
-		 
-		 else begin
-			// this block operates outside of the rate divider and used for drawing and clearing falling blocks
-			// increase counter, used as a rate divider
-		 	counter <= counter + 1;
-			
-			// if clear = 1, signal for erasing the 1st falling block
-			 if(clear == 4'd1) begin
-			  
-			  
-					x <= x_2;
-					y <= y_2;
-					
-					colour <= 1'b000;
-					clear <= 2;
-			  end
-			  // if clear = 2, signal for erasing the 2nd falling block
-			  else if(clear == 4'd2) begin
-			  
-			  
-					x <= x_3;
-					y <= y_3;
-					clear <= 3;
-			  end
-			  // if clear = 3, signal for erasing the 3rd falling block
-			  else if(clear == 4'd3) begin
-			  
-			  
-					x <= x_4;
-					y <= y_4;
-					clear <= 0;
-			  end
-			  
-			  
-			  // if draw = 1, draw the 1st falling block
-			  if(draw == 4'd1) begin
-					x <= x_2;
-					y <= y_2;
-				
-
-					colour <= 3'b110;
-					draw <= 2;
-			  
-			  end
-			  // if draw = 2, draw the 2nd falling block
-			  else if(draw == 4'd2) begin
-			  
-					x <= x_3;
-					y <= y_3;
-				
-
-					colour <= 3'b011;
-					draw <= 3;
-			  end
-			  // if draw = 3, draw the 3rd falling block
-			  else if(draw == 4'd3) begin
-			  
-					x <= x_4;
-					y <= y_4;
-				
-
-					colour <= 3'b100;
-					draw <= 0;
-			  end
-	    end
-end
 endmodule
 
 // hex display
