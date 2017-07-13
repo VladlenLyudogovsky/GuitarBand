@@ -74,7 +74,7 @@ module GuitarBand
 		defparam VGA.RESOLUTION = "160x120";
 		defparam VGA.MONOCHROME = "FALSE";
 		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
-		defparam VGA.BACKGROUND_IMAGE = "background.mif";
+		defparam VGA.BACKGROUND_IMAGE = "";
 			
 	// Put your code here. Your code should produce signals x,y,colour and writeEn/plot
 	// for the VGA controller, in addition to any other functionality your design may require.
@@ -84,8 +84,8 @@ module GuitarBand
 	
 	wire left, right;
 	
-	assign left = KEY[3];
-	assign right = KEY[2];
+	assign left = SW[2];
+	assign right = SW[0];
 	
 	
 	datapath d1(CLOCK_50, resetn, left, right, x, y, colour, data_result);
@@ -106,6 +106,21 @@ module GuitarBand
     
 endmodule
 
+`define LANE_COUNT 2
+`define LANE1_X 30
+`define LANE2_X 90
+
+`define HITBLOCK_Y 10
+
+`define RED 3'b100
+`define GREEN 3'b010
+`define BLUE 3'b001
+`define WHITE 3'b111
+`define BLACK 3'b00
+
+`define TICKS_PER_FRAME 500000
+
+
 module datapath(
     input clk,
 	 input resetn,
@@ -118,11 +133,16 @@ module datapath(
     ); 
 	 
 	 
-	reg [4:0] ;
-	 
+	//reg [4:0] ;
+	reg pre_left;
+	reg left_click;
+	
+	reg pre_right;
+	reg right_click;
 	
 	reg [27:0] frame_counter;
-	reg [27:0] counter2;
+	reg [3:0] lane_counter;
+	reg [4:0] draw_counter;
 	
     // output of the alu
    reg [7:0] x_alu;
@@ -135,27 +155,114 @@ module datapath(
 
 	reg [7:0] blockX1;
 	reg [6:0] blockY1;
+	reg [7:0] blockX2;
+	reg [6:0] blockY2;
 	
 	initial begin 
-		blockX1 <= 30;
+		
+		blockX1 <= `LANE1_X;
 		blockY1 <= 0;
+		blockX2 <= `LANE2_X;
+		blockY2 <= 0;
+		lane_counter <= 0;
+		frame_counter <= 0;
+		draw_counter <= 0;
+		
+		left_click <= 0;
+		pre_left <= 1;
+		right_click <= 0;
+		pre_right <= 1;
 	end
 	
-	always@(posedge clk) begin
-		frame_counter <= frame_counter + 1;
-		
-		
 	
-		//!#!#!#!#!#!#!##########################################################!#!#!#!#!#!!!!!!!!!!!!!!!!!!!
-		// Out put pos 20 20 colour 010
-
-		x <= blockX1;
-		y <= blockY1;			
-		colour <= 3'b010;
-		if (frame_counter == 0 && ) begin
-			blockY1 <= blockY1 + 1;		
-		end
+	
+	always@(posedge clk) begin
 		
+		if(draw_counter == 2) begin
+			draw_counter <= 0;
+			// If we process every lane
+			lane_counter <= lane_counter + 1;
+			if(lane_counter == `LANE_COUNT) begin
+				lane_counter <= 0;
+				// Once every lane is proccesed, increment tick
+				frame_counter <= frame_counter + 1;
+				// If we reach the ticks per frame
+				if(frame_counter == `TICKS_PER_FRAME) begin
+					frame_counter <= 0;
+				end
+			end
+		end
+
+		
+		// Update Lane 1
+		if(lane_counter == 0) begin
+			pre_left <= left;
+			if(left == 1 && pre_left == 0) begin
+				left_click <= 1;
+			end
+			if(draw_counter == 0 && left_click == 0) begin
+				if (frame_counter == 0) begin
+					x <= `LANE1_X;
+					y <= `HITBLOCK_Y;
+					colour <= `BLACK;
+				end
+			end
+			if(draw_counter == 0 && left_click == 1) begin
+				x <= `LANE1_X;
+				y <= `HITBLOCK_Y;
+				colour <= `WHITE;
+				left_click <= 0;
+			end
+			if(draw_counter == 1) begin
+				x <= blockX1;
+				y <= blockY1;			
+				colour <= `RED;
+				if (frame_counter == 0) begin
+					blockY1 <= blockY1 + 1;		
+				end
+			end
+		end
+		// Update Lane 2
+		else if(lane_counter == 1) begin
+			pre_right <= right;
+			if(right == 1 && pre_right == 0) begin
+				right_click <= 1;
+			end
+	
+			if(draw_counter == 0 && right_click == 0) begin
+				if (frame_counter == 0) begin
+					x <= `LANE2_X;
+					y <= `HITBLOCK_Y;
+					colour <= `BLACK;
+				end
+			end
+			else if(draw_counter == 0 && right_click == 1) begin
+				x <= `LANE2_X;
+				y <= `HITBLOCK_Y;
+				colour <= `WHITE;
+				right_click <= 0;
+			end
+			else if(draw_counter == 1) begin
+				x <= blockX2;
+				y <= blockY2;			
+				colour <= `GREEN;
+				if (frame_counter == 0) begin
+					blockY2 <= blockY2 + 1;		
+				end
+			end
+		end
+		/*
+		else if(lane_counter == 1) begin
+			x <= blockX2;
+			y <= blockY2;			
+			colour <= `GREEN;
+			if (frame_counter == 0) begin
+				blockY2 <= blockY2 + 1;
+			end	
+		end
+		*/
+		// Go to next lane
+		draw_counter <= draw_counter + 1;
 	end
 
 endmodule
