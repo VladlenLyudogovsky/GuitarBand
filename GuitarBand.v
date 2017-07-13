@@ -88,7 +88,7 @@ module GuitarBand
 	assign right = SW[0];
 	
 	
-	datapath d1(CLOCK_50, resetn, left, right, x, y, colour, data_result);
+	main m1(CLOCK_50, resetn, left, right, x, y, colour, data_result);
 
 	
 	wire [7:0] data_result;
@@ -121,7 +121,7 @@ endmodule
 `define TICKS_PER_FRAME 500000
 
 
-module datapath(
+module main(
     input clk,
 	 input resetn,
 	 input left,
@@ -174,10 +174,33 @@ module datapath(
 		pre_right <= 1;
 	end
 	
+	wire [0:0] clk_div; // Holds the value of the ratedivider clock
+	wire [3:0] new_chord; // Register to store psuedo-random 4-bit number
+	//initial begin
+		//assign new_chord = 4'b1001; // Seed for pseudo-randomness, change it later
+	//end
+	rate_divider R(.clk(clk), .d(clk_div)); // The ratedivider clock is based off the clock provided to this module
+	LFSR L(.clk(clk_div), .d(new_chord)); // Pseudo-random number generator
+	
+	// All 4 lanes of the game are stored in these registers [3 2 1 0] and they are 8-bit registers by default
+	// These 1-bit registers represent the value popped out of each register on the clock cycle
+	wire [0:0] s3_out;
+	wire [0:0] s2_out;
+	wire [0:0] s1_out;
+	wire [0:0] s0_out;
+	// These 8-bit registers represent the current values the registers hold, the 0th index being the top of the lane
+	wire [7:0] s3_byte;
+	wire [7:0] s2_byte;
+	wire [7:0] s1_byte;
+	wire [7:0] s0_byte;
+	
+	shift_register S3(.CLK(clk_div), .RST(resetn), .DATA_IN(new_chord[3]), .BIT_OUT(s3_out), .BYTE_OUT(s3_byte)); // leftmost lane
+	shift_register S2(.CLK(clk_div), .RST(resetn), .DATA_IN(new_chord[2]), .BIT_OUT(s2_out), .BYTE_OUT(s2_byte)); // second leftmost lane
+	shift_register S1(.CLK(clk_div), .RST(resetn), .DATA_IN(new_chord[1]), .BIT_OUT(s1_out), .BYTE_OUT(s1_byte)); // second rightmost lane
+	shift_register S0(.CLK(clk_div), .RST(resetn), .DATA_IN(new_chord[0]), .BIT_OUT(s0_out), .BYTE_OUT(s0_byte)); // rightmost lane
 	
 	
 	always@(posedge clk) begin
-		
 		if(draw_counter == 2) begin
 			draw_counter <= 0;
 			// If we process every lane
@@ -196,10 +219,13 @@ module datapath(
 		
 		// Update Lane 1
 		if(lane_counter == 0) begin
+			// Detect trigger point for button
 			pre_left <= left;
 			if(left == 1 && pre_left == 0) begin
 				left_click <= 1;
 			end
+			
+			// Delete block hitter
 			if(draw_counter == 0 && left_click == 0) begin
 				if (frame_counter == 0) begin
 					x <= `LANE1_X;
@@ -207,12 +233,14 @@ module datapath(
 					colour <= `BLACK;
 				end
 			end
+			// Draw block hitter for one frame
 			if(draw_counter == 0 && left_click == 1) begin
 				x <= `LANE1_X;
 				y <= `HITBLOCK_Y;
 				colour <= `WHITE;
 				left_click <= 0;
 			end
+			// Draw and update block
 			if(draw_counter == 1) begin
 				x <= blockX1;
 				y <= blockY1;			
@@ -222,6 +250,11 @@ module datapath(
 				end
 			end
 		end
+		
+		
+		  //-----------//
+		 //    Copy   //
+		//-----------//
 		// Update Lane 2
 		else if(lane_counter == 1) begin
 			pre_right <= right;
@@ -251,17 +284,8 @@ module datapath(
 				end
 			end
 		end
-		/*
-		else if(lane_counter == 1) begin
-			x <= blockX2;
-			y <= blockY2;			
-			colour <= `GREEN;
-			if (frame_counter == 0) begin
-				blockY2 <= blockY2 + 1;
-			end	
-		end
-		*/
-		// Go to next lane
+
+		// Go to next draw
 		draw_counter <= draw_counter + 1;
 	end
 
